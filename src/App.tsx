@@ -13,11 +13,16 @@ import {
   MeterLog, 
   UserRole, 
   RoomStatus,
-  TicketStatus 
+  RoomType,
+  TicketStatus,
+  StaffMember,
+  CurrentUserSession
 } from './types';
+import { STAFF_MEMBERS } from './data/mockData';
 import { 
   getInitialAppState, 
   saveStoredData, 
+  loadStoredData,
   resetAllData, 
   generateWhatsAppMessage, 
   formatIDR 
@@ -25,11 +30,15 @@ import {
 import { Navbar } from './components/Navbar';
 import { DashboardOverview } from './components/DashboardOverview';
 import { RoomGrid } from './components/RoomGrid';
+import { RoomConfigModal } from './components/RoomConfigModal';
 import { TenantManagement } from './components/TenantManagement';
 import { BillingManagement } from './components/BillingManagement';
 import { MaintenanceSystem } from './components/MaintenanceSystem';
 import { RoomControl } from './components/RoomControl';
 import { TenantPortalView } from './components/TenantPortalView';
+import { CaretakerDashboardView } from './components/CaretakerDashboardView';
+import { AuthAccessModal } from './components/AuthAccessModal';
+import { StaffAccessModal } from './components/StaffAccessModal';
 import { DatabaseSchemaModal } from './components/DatabaseSchemaModal';
 import { ReceiptModal } from './components/ReceiptModal';
 import { RoomDetailModal } from './components/RoomDetailModal';
@@ -45,10 +54,32 @@ export default function App() {
   const [expenses, setExpenses] = useState<FinancialRecord[]>(initialData.expenses);
   const [meterLogs, setMeterLogs] = useState<MeterLog[]>(initialData.meterLogs);
 
+  // Staff Members list (Pak Budi, Pak Joko, etc.)
+  const [staffList, setStaffList] = useState<StaffMember[]>(() => {
+    return loadStoredData<StaffMember[]>('sikost_staff_v1', STAFF_MEMBERS);
+  });
+
+  // Active Authenticated Session (Owner, Penjaga, or Penghuni)
+  const [currentSession, setCurrentSession] = useState<CurrentUserSession>(() => {
+    return loadStoredData<CurrentUserSession>('sikost_session_v1', {
+      role: 'owner',
+      userId: 'owner-1',
+      name: 'Ir. H. Hendrawan',
+      title: 'Pemilik Kost & Super Admin',
+      emailOrPhone: 'owner@adyatma.id · 081122334455',
+    });
+  });
+
   // App Navigation & Role
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
-  const [role, setRole] = useState<UserRole>('owner');
-  const [activeTenantId, setActiveTenantId] = useState<string>(initialData.tenants[0]?.id || 'tenant-1');
+  const [role, setRole] = useState<UserRole>(currentSession.role);
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    if (currentSession.role === 'staff') return 'caretaker_dashboard';
+    if (currentSession.role === 'tenant') return 'tenant_portal';
+    return 'dashboard';
+  });
+  const [activeTenantId, setActiveTenantId] = useState<string>(
+    currentSession.tenantId || initialData.tenants[0]?.id || 'tenant-1'
+  );
 
   // Dark Mode Theme
   const [isDark, setIsDark] = useState<boolean>(() => {
@@ -88,10 +119,22 @@ export default function App() {
     saveStoredData('sikost_meter_logs_v1', meterLogs);
   }, [meterLogs]);
 
+  useEffect(() => {
+    saveStoredData('sikost_staff_v1', staffList);
+  }, [staffList]);
+
+  useEffect(() => {
+    saveStoredData('sikost_session_v1', currentSession);
+  }, [currentSession]);
+
   // Modals state
   const [isDbModalOpen, setIsDbModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
   const [receiptModalInvoice, setReceiptModalInvoice] = useState<Invoice | null>(null);
   const [selectedRoomDetailId, setSelectedRoomDetailId] = useState<string | null>(null);
+  const [isRoomConfigOpen, setIsRoomConfigOpen] = useState(false);
+  const [roomConfigTargetId, setRoomConfigTargetId] = useState<string | null>(null);
 
   // WhatsApp quick sender modal
   const [waModalInvoice, setWaModalInvoice] = useState<Invoice | null>(null);
@@ -178,8 +221,79 @@ export default function App() {
     setTenants(prev => prev.map(t => t.id === tenantId ? { ...t, isAutoRenew } : t));
   };
 
+  const handleDeleteTenant = (tenantId: string) => {
+    const tenant = tenants.find(t => t.id === tenantId);
+    if (!tenant) return;
+
+    // ATURAN INTEGRITAS: data penghuni tidak bisa di hapus apabila sudah checkout
+    if (tenant.status === 'graduated') {
+      alert('Perlindungan Sistem: Data penghuni tidak bisa dihapus apabila sudah checkout demi kepatuhan audit keuangan dan arsip legal.');
+      return;
+    }
+
+    // Jika penghuni aktif yang dibatalkan, kembalikan kamar menjadi kosong
+    setRooms(prev => prev.map(r => {
+      if (r.currentTenantId === tenantId) {
+        return { ...r, status: 'vacant', currentTenantId: undefined };
+      }
+      return r;
+    }));
+
+    setTenants(prev => prev.filter(t => t.id !== tenantId));
+  };
+
   const handleUpdateRoomStatus = (roomId: string, status: RoomStatus) => {
     setRooms(prev => prev.map(r => r.id === roomId ? { ...r, status } : r));
+  };
+
+  // Handlers: Room Configuration (Number, Price, Facilities, Add Unit, Batch Adjustment)
+  const handleUpdateRoom = (roomId: string, updatedData: Partial<Room>) => {
+    setRooms(prev => prev.map(r => {
+      if (r.id === roomId) {
+        return {
+          ...r,
+          ...updatedData,
+        };
+      }
+      return r;
+    }));
+  };
+
+  const handleAddRoom = (newRoomData: Omit<Room, 'id'>) => {
+    const newId = `room-${Date.now()}`;
+    const newRoom: Room = {
+      ...newRoomData,
+      id: newId,
+    };
+    setRooms(prev => [...prev, newRoom]);
+  };
+
+  const handleBatchUpdatePrice = (
+    filterType: RoomType | 'all',
+    adjustmentType: 'fixed' | 'delta' | 'percentage',
+    value: number
+  ) => {
+    setRooms(prev => prev.map(r => {
+      if (filterType !== 'all' && r.type !== filterType) {
+        return r;
+      }
+
+      let newPrice = r.basePrice;
+      if (adjustmentType === 'fixed') {
+        newPrice = value;
+      } else if (adjustmentType === 'delta') {
+        newPrice = r.basePrice + value;
+      } else if (adjustmentType === 'percentage') {
+        newPrice = Math.round((r.basePrice * (1 + value / 100)) / 10000) * 10000;
+      }
+
+      newPrice = Math.max(500000, newPrice);
+
+      return {
+        ...r,
+        basePrice: newPrice,
+      };
+    }));
   };
 
   // Handlers: Billing & Invoices
@@ -375,6 +489,45 @@ export default function App() {
     }));
   };
 
+  // Handlers: Authentication & Role Switcher
+  const handleSelectAccess = (newSession: CurrentUserSession) => {
+    setCurrentSession(newSession);
+    setRole(newSession.role);
+
+    if (newSession.role === 'tenant' && newSession.tenantId) {
+      setActiveTenantId(newSession.tenantId);
+      setActiveTab('tenant_portal');
+    } else if (newSession.role === 'staff') {
+      setActiveTab('caretaker_dashboard');
+    } else if (newSession.role === 'owner') {
+      setActiveTab('dashboard');
+    }
+  };
+
+  const handleAddStaff = (newStaffData: Omit<StaffMember, 'id'>) => {
+    const newStaff: StaffMember = {
+      ...newStaffData,
+      id: `stf-${Date.now()}`,
+    };
+    setStaffList(prev => [...prev, newStaff]);
+  };
+
+  const handleDeleteStaff = (staffId: string) => {
+    setStaffList(prev => prev.filter(s => s.id !== staffId));
+  };
+
+  const handleSwitchStaffSession = (staff: StaffMember) => {
+    handleSelectAccess({
+      role: 'staff',
+      userId: staff.id,
+      name: staff.name,
+      title: `${staff.role} (Caretaker On-Site)`,
+      emailOrPhone: staff.phone,
+      staffRole: staff.role,
+      shift: staff.shift || 'Shift Lapangan On-Site',
+    });
+  };
+
   // Reset to default mock data
   const handleResetData = () => {
     if (confirm('Apakah Anda yakin ingin mengatur ulang data demo Kost Adyatma ke kondisi awal?')) {
@@ -395,10 +548,16 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         role={role}
-        setRole={setRole}
+        currentSession={currentSession}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onOpenStaffModal={() => setIsStaffModalOpen(true)}
+        onOpenRoomConfig={() => {
+          setRoomConfigTargetId(null);
+          setIsRoomConfigOpen(true);
+        }}
+        onOpenDbModal={() => setIsDbModalOpen(true)}
         isDark={isDark}
         toggleDark={() => setIsDark(!isDark)}
-        onOpenDbModal={() => setIsDbModalOpen(true)}
         unverifiedCount={unverifiedCount}
         openTicketsCount={openTicketsCount}
       />
@@ -406,7 +565,7 @@ export default function App() {
       {/* Main Viewport Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
         
-        {/* If persona is 'tenant', render Tenant Portal View */}
+        {/* 1. Akses Penghuni (Tenant Portal) */}
         {role === 'tenant' ? (
           <TenantPortalView
             tenants={tenants}
@@ -418,7 +577,59 @@ export default function App() {
             onUploadPaymentProof={handleTenantUploadProof}
             onSubmitMaintenance={handleCreateTicket}
           />
+        ) : role === 'staff' ? (
+          /* 2. Akses Penjaga Kost (Caretaker & Staf Lapangan) */
+          <>
+            {activeTab === 'rooms' && (
+              <RoomGrid
+                rooms={rooms}
+                tenants={tenants}
+                onSelectRoom={(roomId) => setSelectedRoomDetailId(roomId)}
+                onOpenRoomConfig={undefined}
+                onOpenCheckInModal={() => setActiveTab('rooms')}
+                onOpenMeterModal={() => setActiveTab('control')}
+                onOpenTicketModal={() => setActiveTab('tickets')}
+                onOpenBillModal={() => setActiveTab('control')}
+                onUpdateRoomStatus={handleUpdateRoomStatus}
+              />
+            )}
+
+            {activeTab === 'tickets' && (
+              <MaintenanceSystem
+                tickets={tickets}
+                rooms={rooms}
+                tenants={tenants}
+                onCreateTicket={handleCreateTicket}
+                onUpdateTicketStatus={handleUpdateTicketStatus}
+              />
+            )}
+
+            {activeTab === 'control' && (
+              <RoomControl
+                rooms={rooms}
+                meterLogs={meterLogs}
+                onUpdateMeter={handleUpdateMeter}
+                onGenerateNewPin={handleGenerateNewPin}
+              />
+            )}
+
+            {(activeTab === 'caretaker_dashboard' || (activeTab !== 'rooms' && activeTab !== 'tickets' && activeTab !== 'control')) && (
+              <CaretakerDashboardView
+                rooms={rooms}
+                tenants={tenants}
+                tickets={tickets}
+                meterLogs={meterLogs}
+                currentStaffName={currentSession.name}
+                onUpdateMeter={handleUpdateMeter}
+                onGenerateNewPin={handleGenerateNewPin}
+                onUpdateTicketStatus={handleUpdateTicketStatus}
+                onSelectRoomDetail={(roomId) => setSelectedRoomDetailId(roomId)}
+                onNavigateTab={(tab) => setActiveTab(tab)}
+              />
+            )}
+          </>
         ) : (
+          /* 3. Akses Owner (Pemilik Kost / Super Admin) */
           <>
             {activeTab === 'dashboard' && (
               <DashboardOverview
@@ -438,6 +649,10 @@ export default function App() {
                 rooms={rooms}
                 tenants={tenants}
                 onSelectRoom={(roomId) => setSelectedRoomDetailId(roomId)}
+                onOpenRoomConfig={(roomId) => {
+                  setRoomConfigTargetId(roomId || null);
+                  setIsRoomConfigOpen(true);
+                }}
                 onOpenCheckInModal={(room) => {
                   setActiveTab('tenants');
                 }}
@@ -462,6 +677,7 @@ export default function App() {
                 onCheckoutTenant={handleCheckoutTenant}
                 onTransferRoom={handleTransferRoom}
                 onUpdateAutoRenew={handleUpdateAutoRenew}
+                onDeleteTenant={handleDeleteTenant}
               />
             )}
 
@@ -617,6 +833,11 @@ export default function App() {
         tickets={tickets}
         onClose={() => setSelectedRoomDetailId(null)}
         onUpdateStatus={handleUpdateRoomStatus}
+        onOpenRoomConfig={(roomId) => {
+          setSelectedRoomDetailId(null);
+          setRoomConfigTargetId(roomId);
+          setIsRoomConfigOpen(true);
+        }}
         onOpenCheckIn={(room) => {
           setActiveTab('tenants');
         }}
@@ -629,6 +850,41 @@ export default function App() {
         onOpenBill={(room) => {
           setActiveTab('billing');
         }}
+      />
+
+      {/* Room Number & Price Configuration Modal */}
+      <RoomConfigModal
+        isOpen={isRoomConfigOpen}
+        onClose={() => {
+          setIsRoomConfigOpen(false);
+          setRoomConfigTargetId(null);
+        }}
+        rooms={rooms}
+        onUpdateRoom={handleUpdateRoom}
+        onAddRoom={handleAddRoom}
+        onBatchUpdatePrice={handleBatchUpdatePrice}
+        initialSelectedRoomId={roomConfigTargetId}
+      />
+
+      {/* Role Selection & Authentication Switcher Modal */}
+      <AuthAccessModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        currentSession={currentSession}
+        onSelectAccess={handleSelectAccess}
+        tenants={tenants}
+        rooms={rooms}
+        staffList={staffList}
+      />
+
+      {/* Staff Management & Permissions Matrix Modal (Owner Only) */}
+      <StaffAccessModal
+        isOpen={isStaffModalOpen}
+        onClose={() => setIsStaffModalOpen(false)}
+        staffList={staffList}
+        onAddStaff={handleAddStaff}
+        onDeleteStaff={handleDeleteStaff}
+        onSwitchStaffSession={handleSwitchStaffSession}
       />
 
       {/* Production Database Schema & DDL Modal */}

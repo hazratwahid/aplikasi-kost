@@ -13,7 +13,8 @@ import {
   CheckCircle,
   Clock,
   Sparkles,
-  Maximize2
+  Maximize2,
+  Settings
 } from 'lucide-react';
 
 interface RoomGridProps {
@@ -25,6 +26,7 @@ interface RoomGridProps {
   onOpenTicketModal: (room: Room) => void;
   onOpenBillModal: (room: Room) => void;
   onUpdateRoomStatus: (roomId: string, status: RoomStatus) => void;
+  onOpenRoomConfig?: (roomId?: string) => void;
 }
 
 export const RoomGrid: React.FC<RoomGridProps> = ({
@@ -36,6 +38,7 @@ export const RoomGrid: React.FC<RoomGridProps> = ({
   onOpenTicketModal,
   onOpenBillModal,
   onUpdateRoomStatus,
+  onOpenRoomConfig,
 }) => {
   const [selectedFloor, setSelectedFloor] = useState<number | 'all'>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
@@ -72,16 +75,28 @@ export const RoomGrid: React.FC<RoomGridProps> = ({
             </p>
           </div>
           
-          {/* Quick Search */}
-          <div className="relative min-w-[240px]">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Cari no. kamar, tipe, penyewa..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
-            />
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Quick Search */}
+            <div className="relative min-w-[200px] sm:min-w-[240px]">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Cari no. kamar, tipe, penyewa..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
+              />
+            </div>
+
+            {onOpenRoomConfig && (
+              <button
+                onClick={() => onOpenRoomConfig()}
+                className="py-1.5 px-3 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-md flex items-center gap-1.5 transition-colors shadow-xs whitespace-nowrap"
+              >
+                <Settings className="w-3.5 h-3.5" />
+                Kelola Tarif & No. Kamar
+              </button>
+            )}
           </div>
         </div>
 
@@ -333,13 +348,24 @@ export const RoomGrid: React.FC<RoomGridProps> = ({
                 {/* Action Buttons */}
                 <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center gap-1.5">
                   {room.status === 'vacant' ? (
-                    <button
-                      onClick={() => onOpenCheckInModal(room)}
-                      className="w-full py-1.5 px-3 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-md flex items-center justify-center gap-1.5 transition-colors"
-                    >
-                      <UserPlus className="w-3.5 h-3.5" />
-                      Check-in Penghuni
-                    </button>
+                    <div className="flex items-center gap-1.5 w-full">
+                      <button
+                        onClick={() => onOpenCheckInModal(room)}
+                        className="flex-1 py-1.5 px-3 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-md flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        Check-in Penghuni
+                      </button>
+                      {onOpenRoomConfig && (
+                        <button
+                          onClick={() => onOpenRoomConfig(room.id)}
+                          title="Ubah Nomor & Harga Kamar"
+                          className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-md transition-colors"
+                        >
+                          <Settings className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   ) : (
                     <>
                       <button
@@ -348,6 +374,15 @@ export const RoomGrid: React.FC<RoomGridProps> = ({
                       >
                         Detail
                       </button>
+                      {onOpenRoomConfig && (
+                        <button
+                          onClick={() => onOpenRoomConfig(room.id)}
+                          title="Ubah Nomor & Tarif Kamar"
+                          className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-md transition-colors"
+                        >
+                          <Settings className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                       <button
                         onClick={() => onOpenMeterModal(room)}
                         title="Catat Meteran Listrik"

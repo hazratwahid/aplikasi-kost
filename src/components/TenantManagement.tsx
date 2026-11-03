@@ -14,7 +14,11 @@ import {
   ShieldCheck, 
   AlertCircle,
   FileText,
-  UserCheck
+  UserCheck,
+  Lock,
+  Trash2,
+  Archive,
+  Info
 } from 'lucide-react';
 
 interface TenantManagementProps {
@@ -24,6 +28,7 @@ interface TenantManagementProps {
   onCheckoutTenant: (tenantId: string, notes: string) => void;
   onTransferRoom: (tenantId: string, newRoomId: string) => void;
   onUpdateAutoRenew: (tenantId: string, isAutoRenew: boolean) => void;
+  onDeleteTenant?: (tenantId: string) => void;
 }
 
 export const TenantManagement: React.FC<TenantManagementProps> = ({
@@ -33,12 +38,16 @@ export const TenantManagement: React.FC<TenantManagementProps> = ({
   onCheckoutTenant,
   onTransferRoom,
   onUpdateAutoRenew,
+  onDeleteTenant,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusTab, setStatusTab] = useState<'all' | 'active' | 'graduated'>('all');
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
   const [isCheckInOpen, setIsCheckInOpen] = useState(false);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null);
+  const [blockedDeleteNotice, setBlockedDeleteNotice] = useState<Tenant | null>(null);
 
   // Transfer form state
   const [targetRoomId, setTargetRoomId] = useState('');
@@ -69,6 +78,8 @@ export const TenantManagement: React.FC<TenantManagementProps> = ({
   const vacantRooms = rooms.filter(r => r.status === 'vacant');
 
   const filteredTenants = tenants.filter(t => {
+    if (statusTab === 'active' && t.status !== 'active') return false;
+    if (statusTab === 'graduated' && t.status !== 'graduated') return false;
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     const room = rooms.find(r => r.id === t.roomId);
@@ -80,6 +91,29 @@ export const TenantManagement: React.FC<TenantManagementProps> = ({
       room?.number.includes(q)
     );
   });
+
+  const handleRequestDelete = (tenant: Tenant) => {
+    if (tenant.status === 'graduated') {
+      // ATURAN INTEGRITAS: data penghuni tidak bisa di hapus apabila sudah checkout
+      setBlockedDeleteNotice(tenant);
+      return;
+    }
+    setTenantToDelete(tenant);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!tenantToDelete) return;
+    if (tenantToDelete.status === 'graduated') {
+      setBlockedDeleteNotice(tenantToDelete);
+      setTenantToDelete(null);
+      return;
+    }
+    onDeleteTenant?.(tenantToDelete.id);
+    if (selectedTenant?.id === tenantToDelete.id) {
+      setSelectedTenant(null);
+    }
+    setTenantToDelete(null);
+  };
 
   const handleOpenCheckIn = (preselectedRoomId?: string) => {
     setNewTenantForm(prev => ({
@@ -177,6 +211,48 @@ export const TenantManagement: React.FC<TenantManagementProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Status Filter Tabs */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100 dark:border-slate-800 mt-4 text-xs">
+          <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-lg border border-slate-200 dark:border-slate-700">
+            <button
+              onClick={() => setStatusTab('all')}
+              className={`px-3 py-1 rounded-md transition-colors ${
+                statusTab === 'all'
+                  ? 'bg-white dark:bg-slate-700 font-semibold text-slate-900 dark:text-white shadow-2xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              Semua ({tenants.length})
+            </button>
+            <button
+              onClick={() => setStatusTab('active')}
+              className={`px-3 py-1 rounded-md transition-colors ${
+                statusTab === 'active'
+                  ? 'bg-white dark:bg-slate-700 font-semibold text-emerald-700 dark:text-emerald-400 shadow-2xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              Penghuni Aktif ({tenants.filter(t => t.status === 'active').length})
+            </button>
+            <button
+              onClick={() => setStatusTab('graduated')}
+              className={`px-3 py-1 rounded-md transition-colors flex items-center gap-1.5 ${
+                statusTab === 'graduated'
+                  ? 'bg-white dark:bg-slate-700 font-semibold text-slate-900 dark:text-white shadow-2xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Lock className="w-3 h-3 text-slate-400" />
+              Riwayat Check-out ({tenants.filter(t => t.status === 'graduated').length})
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+            <Lock className="w-3 h-3 text-amber-500" />
+            <span>Data penghuni yang sudah checkout terkunci permanen (tidak dapat dihapus).</span>
+          </div>
+        </div>
       </div>
 
       {/* Tenants Table */}
@@ -188,7 +264,7 @@ export const TenantManagement: React.FC<TenantManagementProps> = ({
                 <th className="py-3 px-4">Kamar</th>
                 <th className="py-3 px-4">Nama Penghuni</th>
                 <th className="py-3 px-4">Kontak (WhatsApp)</th>
-                <th className="py-3 px-4">Pekerjaan / Instansi</th>
+                <th className="py-3 px-4">Status Sewa</th>
                 <th className="py-3 px-4">Periode Kontrak</th>
                 <th className="py-3 px-4">Jatuh Tempo</th>
                 <th className="py-3 px-4">Deposit</th>
@@ -199,25 +275,36 @@ export const TenantManagement: React.FC<TenantManagementProps> = ({
               {filteredTenants.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-8 text-center text-slate-400">
-                    Tidak ditemukan data penghuni sesuai pencarian.
+                    Tidak ditemukan data penghuni pada kategori ini.
                   </td>
                 </tr>
               ) : (
                 filteredTenants.map(tenant => {
                   const room = rooms.find(r => r.id === tenant.roomId);
+                  const isGraduated = tenant.status === 'graduated';
+
                   return (
                     <tr 
                       key={tenant.id}
                       className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
                     >
                       <td className="py-3 px-4">
-                        <span className="font-mono font-bold text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
+                        <span className={`font-mono font-bold px-2 py-0.5 rounded ${
+                          isGraduated 
+                            ? 'bg-slate-100 dark:bg-slate-800 text-slate-500' 
+                            : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300'
+                        }`}>
                           {room?.number || '-'}
                         </span>
                       </td>
                       <td className="py-3 px-4">
-                        <div className="font-semibold text-slate-900 dark:text-white">
+                        <div className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
                           {tenant.name}
+                          {isGraduated && (
+                            <span title="Data Terkunci (Sudah Check-out)">
+                              <Lock className="w-3 h-3 text-slate-400 shrink-0" />
+                            </span>
+                          )}
                         </div>
                         <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
                           NIK: {tenant.nik}
@@ -235,8 +322,21 @@ export const TenantManagement: React.FC<TenantManagementProps> = ({
                         </a>
                       </td>
                       <td className="py-3 px-4">
-                        <div className="text-slate-800 dark:text-slate-200">{tenant.occupation}</div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400">{tenant.institution}</div>
+                        {isGraduated ? (
+                          <span 
+                            title="Data penghuni tidak bisa dihapus apabila sudah checkout"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 cursor-pointer"
+                            onClick={() => setBlockedDeleteNotice(tenant)}
+                          >
+                            <Lock className="w-2.5 h-2.5 text-slate-400" />
+                            Sudah Checkout (Terkunci)
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300">
+                            Aktif
+                          </span>
+                        )}
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{tenant.occupation}</div>
                       </td>
                       <td className="py-3 px-4">
                         <div className="font-mono text-[11px]">
@@ -248,7 +348,7 @@ export const TenantManagement: React.FC<TenantManagementProps> = ({
                         </div>
                       </td>
                       <td className="py-3 px-4 font-mono font-medium text-slate-900 dark:text-slate-100">
-                        Tgl {tenant.rentDueDay} / bln
+                        {isGraduated ? '-' : `Tgl ${tenant.rentDueDay} / bln`}
                       </td>
                       <td className="py-3 px-4 font-mono text-slate-800 dark:text-slate-200">
                         {formatIDR(tenant.depositAmount)}
@@ -261,6 +361,25 @@ export const TenantManagement: React.FC<TenantManagementProps> = ({
                           >
                             Detail
                           </button>
+
+                          {/* Delete or Protected Lock Button */}
+                          {isGraduated ? (
+                            <button
+                              onClick={() => setBlockedDeleteNotice(tenant)}
+                              title="Data penghuni tidak bisa dihapus apabila sudah checkout"
+                              className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded transition-colors"
+                            >
+                              <Lock className="w-3.5 h-3.5 text-slate-400" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleRequestDelete(tenant)}
+                              title="Batalkan / Hapus Data Penghuni Aktif"
+                              className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -279,15 +398,27 @@ export const TenantManagement: React.FC<TenantManagementProps> = ({
             
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold flex items-center justify-center text-sm">
+                <div className={`w-10 h-10 rounded-full font-bold flex items-center justify-center text-sm ${
+                  selectedTenant.status === 'graduated'
+                    ? 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                    : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'
+                }`}>
                   {selectedTenant.name.charAt(0)}
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                    {selectedTenant.name}
-                  </h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                      {selectedTenant.name}
+                    </h2>
+                    {selectedTenant.status === 'graduated' && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-mono font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                        <Lock className="w-2.5 h-2.5" />
+                        Sudah Checkout (Arsip Terkunci)
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Kamar {rooms.find(r => r.id === selectedTenant.roomId)?.number} · Penyewa Aktif
+                    Kamar {rooms.find(r => r.id === selectedTenant.roomId)?.number || '-'} · {selectedTenant.status === 'graduated' ? 'Alumni Kost (Masa Sewa Selesai)' : 'Penyewa Aktif'}
                   </p>
                 </div>
               </div>
@@ -298,6 +429,21 @@ export const TenantManagement: React.FC<TenantManagementProps> = ({
                 ✕
               </button>
             </div>
+
+            {/* Permanent Archive Notice if Graduated */}
+            {selectedTenant.status === 'graduated' && (
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg flex items-start gap-2.5 text-xs">
+                <Lock className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                <div className="space-y-0.5">
+                  <strong className="block font-semibold text-slate-900 dark:text-white">
+                    Perlindungan Arsip: Data Penghuni Terkunci Permanen
+                  </strong>
+                  <p className="text-slate-500 dark:text-slate-400 leading-relaxed">
+                    Penghuni ini telah menyelesaikan masa sewa (check-out). Sesuai aturan operasional, <strong>data penghuni tidak bisa dihapus apabila sudah checkout</strong> untuk menjaga integritas riwayat transaksi, audit pengembalian deposit jaminan, dan rekam jejak legalitas kost.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Profile Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -324,16 +470,20 @@ export const TenantManagement: React.FC<TenantManagementProps> = ({
                 <div><span className="text-slate-500">Deposit Jaminan:</span> <span className="font-mono">{formatIDR(selectedTenant.depositAmount)}</span></div>
                 <div className="flex items-center justify-between pt-1">
                   <span className="text-slate-500">Auto-Perpanjang:</span>
-                  <button
-                    onClick={() => onUpdateAutoRenew(selectedTenant.id, !selectedTenant.isAutoRenew)}
-                    className={`px-2 py-0.5 rounded text-[10px] font-medium ${
-                      selectedTenant.isAutoRenew 
-                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' 
-                        : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
-                    }`}
-                  >
-                    {selectedTenant.isAutoRenew ? 'Aktif (On)' : 'Non-aktif (Off)'}
-                  </button>
+                  {selectedTenant.status === 'graduated' ? (
+                    <span className="text-[10px] text-slate-400 font-mono">Selesai (Off)</span>
+                  ) : (
+                    <button
+                      onClick={() => onUpdateAutoRenew(selectedTenant.id, !selectedTenant.isAutoRenew)}
+                      className={`px-2 py-0.5 rounded text-[10px] font-medium ${
+                        selectedTenant.isAutoRenew 
+                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' 
+                          : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      {selectedTenant.isAutoRenew ? 'Aktif (On)' : 'Non-aktif (Off)'}
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -348,22 +498,48 @@ export const TenantManagement: React.FC<TenantManagementProps> = ({
 
             {/* Operational Workflow Actions */}
             <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setIsTransferOpen(true)}
-                  className="px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md flex items-center gap-1.5"
-                >
-                  <ArrowRightLeft className="w-3.5 h-3.5" />
-                  Pindah Kamar (Transfer)
-                </button>
-                <button
-                  onClick={() => setIsCheckoutOpen(true)}
-                  className="px-3 py-1.5 text-xs font-medium text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 rounded-md flex items-center gap-1.5"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  Check-out / Selesai Sewa
-                </button>
-              </div>
+              {selectedTenant.status === 'graduated' ? (
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-md font-mono border border-slate-200 dark:border-slate-700">
+                    <Lock className="w-3.5 h-3.5 text-slate-400" />
+                    Data Terkunci (Tidak Dapat Dihapus)
+                  </span>
+                  <button
+                    onClick={() => setBlockedDeleteNotice(selectedTenant)}
+                    className="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-md"
+                  >
+                    Mengapa tidak bisa dihapus?
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setIsTransferOpen(true)}
+                    className="px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md flex items-center gap-1.5"
+                  >
+                    <ArrowRightLeft className="w-3.5 h-3.5" />
+                    Pindah Kamar (Transfer)
+                  </button>
+                  <button
+                    onClick={() => setIsCheckoutOpen(true)}
+                    className="px-3 py-1.5 text-xs font-medium text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 rounded-md flex items-center gap-1.5"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    Check-out / Selesai Sewa
+                  </button>
+                  <button
+                    onClick={() => {
+                      const t = selectedTenant;
+                      setSelectedTenant(null);
+                      handleRequestDelete(t);
+                    }}
+                    className="px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 bg-slate-100 dark:bg-slate-800 rounded-md flex items-center gap-1.5"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Batalkan / Hapus Data
+                  </button>
+                </div>
+              )}
 
               <button
                 onClick={() => setSelectedTenant(null)}
@@ -434,6 +610,15 @@ export const TenantManagement: React.FC<TenantManagementProps> = ({
               Kamar {rooms.find(r => r.id === selectedTenant.roomId)?.number} akan dialihkan ke status Perbaikan/Pembersihan. Deposit yang dikembalikan: <span className="font-mono font-semibold">{formatIDR(selectedTenant.depositAmount)}</span>.
             </p>
 
+            {/* Security Audit Warning Notice */}
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg flex items-start gap-2.5 text-xs text-amber-900 dark:text-amber-200">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <strong className="block font-semibold">Ketentuan Integritas Data & Audit:</strong>
+                <span>Setelah proses check-out diselesaikan, status data penghuni ini otomatis beralih menjadi <strong>Arsip Permanen</strong>. Data penghuni <strong>tidak bisa dihapus apabila sudah checkout</strong> demi keperluan riwayat finansial, audit pengembalian deposit jaminan, dan arsip hukum kost.</span>
+              </div>
+            </div>
+
             <div className="space-y-1.5 text-xs">
               <label className="block font-medium text-slate-700 dark:text-slate-300">Catatan Kondisi Kamar & Pengembalian Deposit:</label>
               <textarea
@@ -455,7 +640,7 @@ export const TenantManagement: React.FC<TenantManagementProps> = ({
                 onClick={handleExecuteCheckout}
                 className="px-3 py-1.5 text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white rounded-md"
               >
-                Selesaikan Check-out
+                Selesaikan Check-out & Kunci Arsip
               </button>
             </div>
           </div>
@@ -681,7 +866,101 @@ export const TenantManagement: React.FC<TenantManagementProps> = ({
               </div>
 
             </form>
+          </div>
+        </div>
+      )}
 
+      {/* Blocked Delete Notice Modal - Data Penghuni Tidak Bisa Dihapus Apabila Sudah Checkout */}
+      {blockedDeleteNotice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 shrink-0">
+                <Lock className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  Akses Dibatasi: Data Penghuni Terkunci
+                </h3>
+                <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 mt-0.5">
+                  Data penghuni tidak bisa dihapus apabila sudah checkout
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-200 dark:border-slate-700 text-xs space-y-2.5 text-slate-600 dark:text-slate-300">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-slate-800 dark:text-slate-200">Nama Penghuni:</span>
+                <span className="font-mono">{blockedDeleteNotice.name}</span>
+                <span className="text-slate-400">·</span>
+                <span>Kamar {rooms.find(r => r.id === blockedDeleteNotice.roomId)?.number || '-'}</span>
+              </div>
+
+              <p className="text-[11px] leading-relaxed">
+                Penghuni ini telah berstatus <strong>Alumni (Check-out)</strong>. Demi mematuhi prinsip tata kelola properti dan sistem audit:
+              </p>
+
+              <ul className="space-y-1.5 text-[11px] pl-4 list-disc text-slate-500 dark:text-slate-400">
+                <li>
+                  <strong className="text-slate-700 dark:text-slate-200">Integritas Keuangan:</strong> Transaksi sewa, kwitansi, dan bukti pengembalian uang deposit jaminan harus tetap dapat diaudit.
+                </li>
+                <li>
+                  <strong className="text-slate-700 dark:text-slate-200">Kepatuhan Hukum & RT/RW:</strong> Rekam identitas KTP dan riwayat domisili wajib disimpan sebagai arsip ketertiban lingkungan.
+                </li>
+                <li>
+                  <strong className="text-slate-700 dark:text-slate-200">Status Aman:</strong> Data penghuni aman disimpan pada tab <em>"Riwayat Check-out"</em> tanpa mempengaruhi kapasitas kamar yang tersedia.
+                </li>
+              </ul>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setBlockedDeleteNotice(null)}
+                className="px-4 py-2 text-xs font-semibold bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-md hover:bg-slate-800 transition-colors shadow-xs"
+              >
+                Saya Mengerti
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal for Active / Draft Tenants */}
+      {tenantToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl max-w-md w-full p-5 space-y-4 shadow-xl">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  Batalkan & Hapus Data Penghuni?
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Hapus data pendaftaran untuk {tenantToDelete.name}
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+              Tindakan ini hanya dapat dilakukan pada penyewa yang <strong>belum checkout</strong> (misal: pembatalan pemesanan kamar). Kamar {rooms.find(r => r.id === tenantToDelete.roomId)?.number} akan otomatis dikembalikan ke status <em>Kosong (Siap Huni)</em>.
+            </p>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                onClick={() => setTenantToDelete(null)}
+                className="px-3.5 py-1.5 text-xs text-slate-600 dark:text-slate-400"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="px-4 py-1.5 text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white rounded-md shadow-xs"
+              >
+                Ya, Hapus Data
+              </button>
+            </div>
           </div>
         </div>
       )}

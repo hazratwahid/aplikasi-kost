@@ -125,6 +125,28 @@ export interface StaffMember {
   name: string;
   role: 'Pengelola' | 'Penjaga Kost' | 'Teknisi' | 'Cleaning';
   phone: string;
+  email?: string;
+  shift?: string;
+  active?: boolean;
+  permissions?: {
+    canRecordMeter: boolean;
+    canHandleTickets: boolean;
+    canViewDoorPin: boolean;
+    canVerifyPayment: boolean;
+  };
 }
 
 export type UserRole = 'owner' | 'staff' | 'tenant';
+
+export interface CurrentUserSession {
+  role: UserRole;
+  userId: string;
+  name: string;
+  title: string;
+  emailOrPhone?: string;
+  avatarUrl?: string;
+  tenantId?: string;
+  tenantRoomNumber?: string;
+  staffRole?: string;
+  shift?: string;
+}

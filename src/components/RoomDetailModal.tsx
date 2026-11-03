@@ -11,7 +11,8 @@ import {
   CheckCircle2, 
   Clock, 
   AlertTriangle,
-  RotateCcw
+  RotateCcw,
+  Settings
 } from 'lucide-react';
 
 interface RoomDetailModalProps {
@@ -25,6 +26,7 @@ interface RoomDetailModalProps {
   onOpenMeter: (room: Room) => void;
   onOpenTicket: (room: Room) => void;
   onOpenBill: (room: Room) => void;
+  onOpenRoomConfig?: (roomId: string) => void;
 }
 
 export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
@@ -38,6 +40,7 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
   onOpenMeter,
   onOpenTicket,
   onOpenBill,
+  onOpenRoomConfig,
 }) => {
   if (!room) return null;
 
@@ -58,6 +61,20 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
               <span className="text-xs px-2 py-0.5 rounded font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                 Lantai {room.floor} · {room.type}
               </span>
+              {onOpenRoomConfig && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenRoomConfig(room.id);
+                  }}
+                  className="px-2 py-0.5 text-xs font-semibold rounded bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/50 border border-amber-200 dark:border-amber-800 flex items-center gap-1 transition-colors"
+                  title="Ubah tarif sewa pokok dan konfigurasi nomor kamar"
+                >
+                  <Settings className="w-3 h-3" />
+                  Ubah Tarif / No
+                </button>
+              )}
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               Luas {room.sizeM2} m² · Harga Sewa Pokok: <span className="font-mono font-bold text-slate-900 dark:text-white">{formatIDR(room.basePrice)}</span>/bulan
@@ -66,7 +83,7 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({
 
           <button 
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-sm font-semibold"
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-sm font-semibold p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded"
           >
             ✕
           </button>

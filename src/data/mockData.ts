@@ -377,6 +377,28 @@ export const INITIAL_TENANTS: Tenant[] = [
     isAutoRenew: true,
     status: 'active',
   },
+  {
+    id: 'tenant-alumni-1',
+    name: 'Rizky Ramadhan (Alumni)',
+    nik: '3171091204950009',
+    phone: '081299112233',
+    email: 'rizky.ramadhan@alumni.id',
+    occupation: 'Software Architect',
+    institution: 'PT Traveloka Indonesia',
+    emergencyContact: {
+      name: 'Hadi Ramadhan',
+      relationship: 'Kakak',
+      phone: '081288776655',
+    },
+    roomId: 'room-103',
+    startDate: '2025-10-01',
+    endDate: '2026-10-01',
+    rentDueDay: 1,
+    depositAmount: 2750000,
+    isAutoRenew: false,
+    status: 'graduated',
+    notes: 'Check-out 28 Okt 2026: Kamar rapi, kunci fisik & RFID dikembalikan, deposit Rp 2.750.000 telah ditransfer penuh ke rekening BCA penyewa.',
+  },
 ];
 
 export const INITIAL_INVOICES: Invoice[] = [
