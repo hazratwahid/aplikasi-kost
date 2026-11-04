@@ -451,7 +451,7 @@ export const TenantPortalView: React.FC<TenantPortalViewProps> = ({
                     />
                     <div>
                       <span className="font-bold text-slate-900 dark:text-white block">Bank BCA: 8030 9921 44</span>
-                      <span className="text-[10px] text-slate-500">a/n PT Adyatma Properti Nusantara</span>
+                      <span className="text-[10px] text-slate-500">a/n Kost Fajar Balikpapan</span>
                     </div>
                   </label>
 
@@ -465,7 +465,7 @@ export const TenantPortalView: React.FC<TenantPortalViewProps> = ({
                     />
                     <div>
                       <span className="font-bold text-slate-900 dark:text-white block">Bank Mandiri: 164 000 892 1109</span>
-                      <span className="text-[10px] text-slate-500">a/n Adyatma Properti Nusantara</span>
+                      <span className="text-[10px] text-slate-500">a/n Kost Fajar Balikpapan</span>
                     </div>
                   </label>
 

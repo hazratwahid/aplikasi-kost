@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { UserRole, CurrentUserSession, Tenant, Room, StaffMember } from '../types';
-import { STAFF_MEMBERS } from '../data/mockData';
+import { UserRole, CurrentUserSession, Tenant, Room, StaffMember, OwnerProfile, KostProfile } from '../types';
+import { STAFF_MEMBERS, DEFAULT_OWNER_PROFILE, KOST_INFO } from '../data/mockData';
 import { 
   Shield, 
   Wrench, 
@@ -24,6 +24,8 @@ interface AuthAccessModalProps {
   tenants: Tenant[];
   rooms: Room[];
   staffList?: StaffMember[];
+  ownerProfile?: OwnerProfile;
+  kostProfile?: KostProfile;
 }
 
 export const AuthAccessModal: React.FC<AuthAccessModalProps> = ({
@@ -34,6 +36,8 @@ export const AuthAccessModal: React.FC<AuthAccessModalProps> = ({
   tenants,
   rooms,
   staffList = STAFF_MEMBERS,
+  ownerProfile = DEFAULT_OWNER_PROFILE,
+  kostProfile = KOST_INFO,
 }) => {
   if (!isOpen) return null;
 
@@ -55,8 +59,8 @@ export const AuthAccessModal: React.FC<AuthAccessModalProps> = ({
 
   const handleLoginOwner = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    // Demo PIN is 1234, or default enter
-    if (ownerPin && ownerPin !== '1234') {
+    const targetPin = ownerProfile?.pin || '1234';
+    if (ownerPin && ownerPin !== targetPin) {
       setOwnerPinError(true);
       return;
     }
@@ -64,10 +68,10 @@ export const AuthAccessModal: React.FC<AuthAccessModalProps> = ({
 
     onSelectAccess({
       role: 'owner',
-      userId: 'owner-1',
-      name: 'Ir. H. Hendrawan',
-      title: 'Pemilik Kost & Super Admin',
-      emailOrPhone: 'owner@adyatma.id · 081122334455',
+      userId: ownerProfile.id,
+      name: ownerProfile.name,
+      title: ownerProfile.title,
+      emailOrPhone: `${ownerProfile.email} · ${ownerProfile.phone}`,
     });
     onClose();
   };
@@ -243,7 +247,7 @@ export const AuthAccessModal: React.FC<AuthAccessModalProps> = ({
             <div className="pt-2 border-t border-emerald-100 dark:border-emerald-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <div className="text-xs text-slate-500">
-                  Profil: <strong className="text-slate-800 dark:text-slate-200">Ir. H. Hendrawan</strong> (Owner)
+                  Profil: <strong className="text-slate-800 dark:text-slate-200">{ownerProfile.name}</strong> (Owner)
                 </div>
               </div>
 

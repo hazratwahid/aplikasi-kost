@@ -130,9 +130,9 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
               <span className="font-semibold text-emerald-700 dark:text-emerald-400">Monitoring Operasional Real-Time</span>
               <span>·</span>
-              <span>Kost Adyatma Residence BSD</span>
+              <span>Kost Fajar Balikpapan</span>
               <span>·</span>
-              <span className="font-mono">Update: 02 Nov 2026</span>
+              <span className="font-mono">Balikpapan, Kaltim</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
               Pusat Kendali Operasional Kost

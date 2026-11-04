@@ -138,6 +138,40 @@ export interface StaffMember {
 
 export type UserRole = 'owner' | 'staff' | 'tenant';
 
+export interface OwnerProfile {
+  id: string;
+  name: string;
+  title: string;
+  phone: string;
+  email: string;
+  address?: string;
+  pin?: string;
+  notes?: string;
+}
+
+export interface BankAccount {
+  bank: string;
+  number: string;
+  holder: string;
+}
+
+export interface WifiInfo {
+  floor: string;
+  ssid: string;
+  pass: string;
+}
+
+export interface KostProfile {
+  name: string;
+  tagline: string;
+  address: string;
+  city: string;
+  caretakerName: string;
+  caretakerPhone: string;
+  bankAccounts: BankAccount[];
+  wifiSsids: WifiInfo[];
+}
+
 export interface CurrentUserSession {
   role: UserRole;
   userId: string;

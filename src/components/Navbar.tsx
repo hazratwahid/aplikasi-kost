@@ -9,6 +9,7 @@ import {
   User, 
   Settings, 
   Users, 
+  UserCog,
   LogOut,
   ChevronDown,
   Layers,
@@ -20,8 +21,10 @@ interface NavbarProps {
   setActiveTab: (tab: string) => void;
   role: UserRole;
   currentSession: CurrentUserSession;
+  kostName?: string;
   onOpenAuthModal: () => void;
   onOpenStaffModal?: () => void;
+  onOpenUserManagement?: (tab?: 'owner' | 'staff' | 'kost') => void;
   onOpenRoomConfig?: () => void;
   onOpenDbModal: () => void;
   isDark: boolean;
@@ -35,8 +38,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   setActiveTab,
   role,
   currentSession,
+  kostName,
   onOpenAuthModal,
   onOpenStaffModal,
+  onOpenUserManagement,
   onOpenRoomConfig,
   onOpenDbModal,
   isDark,
@@ -69,8 +74,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {role}
                 </span>
               </div>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 -mt-0.5 hidden sm:block">
-                Kost Adyatma Residence BSD
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 -mt-0.5 hidden sm:block font-medium">
+                {kostName || 'Kost Fajar Balikpapan'}
               </p>
             </div>
           </div>
@@ -259,15 +264,15 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Owner Specific Operations */}
             {role === 'owner' && (
               <>
-                {/* Petugas Lapangan Manager */}
-                {onOpenStaffModal && (
+                {/* Menu Edit Owner & Penjaga Kost */}
+                {onOpenUserManagement && (
                   <button
-                    onClick={onOpenStaffModal}
-                    title="Kelola Petugas Lapangan & Hak Akses"
-                    className="hidden xl:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-200 dark:border-blue-800 rounded-lg transition-colors"
+                    onClick={() => onOpenUserManagement('owner')}
+                    title="Menu Edit Owner, Penjaga Kost & Identitas Kost Fajar"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-200 dark:border-blue-800 rounded-lg transition-colors"
                   >
-                    <Users className="w-3.5 h-3.5" />
-                    <span>Petugas</span>
+                    <UserCog className="w-3.5 h-3.5" />
+                    <span>Edit Owner & Penjaga</span>
                   </button>
                 )}
 
@@ -310,6 +315,15 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex md:hidden overflow-x-auto py-2 gap-2 border-t border-slate-100 dark:border-slate-800 scrollbar-none">
           {role === 'owner' && (
             <>
+              {onOpenUserManagement && (
+                <button
+                  onClick={() => onOpenUserManagement('owner')}
+                  className="px-3 py-1 text-xs whitespace-nowrap rounded font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 flex items-center gap-1"
+                >
+                  <UserCog className="w-3 h-3" />
+                  Edit Owner/Penjaga
+                </button>
+              )}
               <button
                 onClick={() => setActiveTab('dashboard')}
                 className={`px-3 py-1 text-xs whitespace-nowrap rounded ${

@@ -263,7 +263,7 @@ export const RoomGrid: React.FC<RoomGridProps> = ({
               <div className="relative h-40 bg-slate-100 dark:bg-slate-800 overflow-hidden">
                 <img
                   src={room.imageUrl || '/src/assets/images/kost_room_deluxe_1793684547405.jpg'}
-                  alt={`Kamar ${room.number} Kost Adyatma`}
+                  alt={`Kamar ${room.number} Kost Fajar Balikpapan`}
                   referrerPolicy="no-referrer"
                   className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
                 />

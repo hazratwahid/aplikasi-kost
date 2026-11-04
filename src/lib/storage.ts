@@ -1,5 +1,5 @@
-import { Room, Tenant, Invoice, MaintenanceTicket, FinancialRecord, MeterLog, RoomStatus } from '../types';
-import { INITIAL_ROOMS, INITIAL_TENANTS, INITIAL_INVOICES, INITIAL_TICKETS, INITIAL_EXPENSES, INITIAL_METER_LOGS } from '../data/mockData';
+import { Room, Tenant, Invoice, MaintenanceTicket, FinancialRecord, MeterLog, RoomStatus, KostProfile } from '../types';
+import { INITIAL_ROOMS, INITIAL_TENANTS, INITIAL_INVOICES, INITIAL_TICKETS, INITIAL_EXPENSES, INITIAL_METER_LOGS, KOST_INFO } from '../data/mockData';
 
 const STORAGE_KEYS = {
   ROOMS: 'sikost_rooms_v1',
@@ -8,6 +8,10 @@ const STORAGE_KEYS = {
   TICKETS: 'sikost_tickets_v1',
   EXPENSES: 'sikost_expenses_v1',
   METER_LOGS: 'sikost_meter_logs_v1',
+  STAFF: 'sikost_staff_v1',
+  OWNER: 'sikost_owner_profile_v1',
+  KOST_INFO: 'sikost_kost_profile_v1',
+  SESSION: 'sikost_session_v1',
 };
 
 export function loadStoredData<T>(key: string, fallback: T): T {
@@ -46,6 +50,10 @@ export function resetAllData() {
   localStorage.removeItem(STORAGE_KEYS.TICKETS);
   localStorage.removeItem(STORAGE_KEYS.EXPENSES);
   localStorage.removeItem(STORAGE_KEYS.METER_LOGS);
+  localStorage.removeItem(STORAGE_KEYS.STAFF);
+  localStorage.removeItem(STORAGE_KEYS.OWNER);
+  localStorage.removeItem(STORAGE_KEYS.KOST_INFO);
+  localStorage.removeItem(STORAGE_KEYS.SESSION);
 }
 
 // Indonesian Currency Formatter helper
@@ -72,15 +80,22 @@ export function formatDateIndo(dateStr: string): string {
 }
 
 // Generates Indonesian WhatsApp reminder message for tenant payment
-export function generateWhatsAppMessage(tenant: Tenant, room: Room, invoice: Invoice): string {
+export function generateWhatsAppMessage(tenant: Tenant, room: Room, invoice: Invoice, kost?: KostProfile): string {
+  const currentKost = kost || KOST_INFO;
   const dueFormatted = formatDateIndo(invoice.dueDate);
   const itemsText = invoice.items
     .map(it => `• ${it.description}: ${formatIDR(it.amount)}`)
     .join('\n');
 
+  const bankLines = currentKost.bankAccounts && currentKost.bankAccounts.length > 0
+    ? currentKost.bankAccounts.map(b => `💳 *${b.bank}*: ${b.number} a/n ${b.holder}`).join('\n')
+    : `💳 *BCA*: 8030 9921 44 a/n Kost Fajar Balikpapan
+💳 *Mandiri*: 164 000 892 1109 a/n Kost Fajar Balikpapan
+📱 *QRIS*: Tersedia di Portal Penghuni`;
+
   return `Halo Kak *${tenant.name}* (Kamar ${room.number}),
 
-Salam hangat dari Pengelola *Kost Adyatma Residence BSD*.
+Salam hangat dari Pengelola *${currentKost.name}*.
 Berikut kami informasikan rincian tagihan sewa bulanan untuk periode *${invoice.periodMonth}*:
 
 ${itemsText}
@@ -89,9 +104,8 @@ ${itemsText}
 *Jatuh Tempo: ${dueFormatted}*
 
 Pembayaran dapat ditransfer melalui:
-💳 *BCA*: 8030 9921 44 a/n PT Adyatma Properti Nusantara
-💳 *Mandiri*: 164 000 892 1109 a/n Adyatma Properti Nusantara
-📱 *QRIS*: Tersedia di Portal Penghuni
+${bankLines}
 
 Mohon konfirmasi atau unggah bukti transfer setelah melakukan pembayaran ya Kak. Terima kasih banyak atas kerjasamanya! 🙏`;
 }
+

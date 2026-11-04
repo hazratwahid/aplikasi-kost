@@ -16,9 +16,11 @@ import {
   RoomType,
   TicketStatus,
   StaffMember,
-  CurrentUserSession
+  CurrentUserSession,
+  OwnerProfile,
+  KostProfile
 } from './types';
-import { STAFF_MEMBERS } from './data/mockData';
+import { STAFF_MEMBERS, DEFAULT_OWNER_PROFILE, KOST_INFO } from './data/mockData';
 import { 
   getInitialAppState, 
   saveStoredData, 
@@ -39,6 +41,7 @@ import { TenantPortalView } from './components/TenantPortalView';
 import { CaretakerDashboardView } from './components/CaretakerDashboardView';
 import { AuthAccessModal } from './components/AuthAccessModal';
 import { StaffAccessModal } from './components/StaffAccessModal';
+import { UserManagementModal } from './components/UserManagementModal';
 import { DatabaseSchemaModal } from './components/DatabaseSchemaModal';
 import { ReceiptModal } from './components/ReceiptModal';
 import { RoomDetailModal } from './components/RoomDetailModal';
@@ -54,6 +57,16 @@ export default function App() {
   const [expenses, setExpenses] = useState<FinancialRecord[]>(initialData.expenses);
   const [meterLogs, setMeterLogs] = useState<MeterLog[]>(initialData.meterLogs);
 
+  // Owner Profile state (H. Fajar Nugraha)
+  const [ownerProfile, setOwnerProfile] = useState<OwnerProfile>(() => {
+    return loadStoredData<OwnerProfile>('sikost_owner_profile_v1', DEFAULT_OWNER_PROFILE);
+  });
+
+  // Kost Profile state (Kost Fajar Balikpapan)
+  const [kostProfile, setKostProfile] = useState<KostProfile>(() => {
+    return loadStoredData<KostProfile>('sikost_kost_profile_v1', KOST_INFO);
+  });
+
   // Staff Members list (Pak Budi, Pak Joko, etc.)
   const [staffList, setStaffList] = useState<StaffMember[]>(() => {
     return loadStoredData<StaffMember[]>('sikost_staff_v1', STAFF_MEMBERS);
@@ -63,10 +76,10 @@ export default function App() {
   const [currentSession, setCurrentSession] = useState<CurrentUserSession>(() => {
     return loadStoredData<CurrentUserSession>('sikost_session_v1', {
       role: 'owner',
-      userId: 'owner-1',
-      name: 'Ir. H. Hendrawan',
-      title: 'Pemilik Kost & Super Admin',
-      emailOrPhone: 'owner@adyatma.id · 081122334455',
+      userId: ownerProfile.id,
+      name: ownerProfile.name,
+      title: ownerProfile.title,
+      emailOrPhone: `${ownerProfile.email} · ${ownerProfile.phone}`,
     });
   });
 
@@ -124,6 +137,14 @@ export default function App() {
   }, [staffList]);
 
   useEffect(() => {
+    saveStoredData('sikost_owner_profile_v1', ownerProfile);
+  }, [ownerProfile]);
+
+  useEffect(() => {
+    saveStoredData('sikost_kost_profile_v1', kostProfile);
+  }, [kostProfile]);
+
+  useEffect(() => {
     saveStoredData('sikost_session_v1', currentSession);
   }, [currentSession]);
 
@@ -131,6 +152,8 @@ export default function App() {
   const [isDbModalOpen, setIsDbModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
+  const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
+  const [userManagementTab, setUserManagementTab] = useState<'owner' | 'staff' | 'kost'>('owner');
   const [receiptModalInvoice, setReceiptModalInvoice] = useState<Invoice | null>(null);
   const [selectedRoomDetailId, setSelectedRoomDetailId] = useState<string | null>(null);
   const [isRoomConfigOpen, setIsRoomConfigOpen] = useState(false);
@@ -221,17 +244,11 @@ export default function App() {
     setTenants(prev => prev.map(t => t.id === tenantId ? { ...t, isAutoRenew } : t));
   };
 
-  const handleDeleteTenant = (tenantId: string) => {
+  const handleDeleteTenant = (tenantId: string, deleteRelatedData: boolean = false) => {
     const tenant = tenants.find(t => t.id === tenantId);
     if (!tenant) return;
 
-    // ATURAN INTEGRITAS: data penghuni tidak bisa di hapus apabila sudah checkout
-    if (tenant.status === 'graduated') {
-      alert('Perlindungan Sistem: Data penghuni tidak bisa dihapus apabila sudah checkout demi kepatuhan audit keuangan dan arsip legal.');
-      return;
-    }
-
-    // Jika penghuni aktif yang dibatalkan, kembalikan kamar menjadi kosong
+    // Jika kamar sedang ditempati penghuni ini, kembalikan kamar menjadi kosong (vacant)
     setRooms(prev => prev.map(r => {
       if (r.currentTenantId === tenantId) {
         return { ...r, status: 'vacant', currentTenantId: undefined };
@@ -239,7 +256,22 @@ export default function App() {
       return r;
     }));
 
+    // Hapus data penghuni & kontrak sewa dari daftar
     setTenants(prev => prev.filter(t => t.id !== tenantId));
+
+    // Jika dipilih, hapus juga data transaksi/tagihan dan tiket terkait untuk pembersihan data valid
+    if (deleteRelatedData) {
+      setInvoices(prev => prev.filter(inv => inv.tenantId !== tenantId));
+      setTickets(prev => prev.filter(tkt => tkt.tenantId !== tenantId));
+    }
+
+    // Perbarui activeTenantId bila penghuni yang sedang aktif di portal dihapus
+    if (activeTenantId === tenantId) {
+      const remaining = tenants.filter(t => t.id !== tenantId);
+      if (remaining.length > 0) {
+        setActiveTenantId(remaining[0].id);
+      }
+    }
   };
 
   const handleUpdateRoomStatus = (roomId: string, status: RoomStatus) => {
@@ -366,6 +398,10 @@ export default function App() {
         return i;
       }));
     }
+  };
+
+  const handleDeleteInvoice = (invoiceId: string) => {
+    setInvoices(prev => prev.filter(i => i.id !== invoiceId));
   };
 
   const handleAddExpense = (newExpenseData: Omit<FinancialRecord, 'id'>) => {
@@ -512,8 +548,38 @@ export default function App() {
     setStaffList(prev => [...prev, newStaff]);
   };
 
+  const handleUpdateStaff = (staffId: string, updatedData: Partial<StaffMember>) => {
+    setStaffList(prev => prev.map(s => s.id === staffId ? { ...s, ...updatedData } : s));
+    if (currentSession.userId === staffId) {
+      setCurrentSession(prev => ({
+        ...prev,
+        name: updatedData.name || prev.name,
+        title: updatedData.role ? `${updatedData.role} (Caretaker On-Site)` : prev.title,
+        emailOrPhone: updatedData.phone || prev.emailOrPhone,
+        staffRole: updatedData.role || prev.staffRole,
+        shift: updatedData.shift || prev.shift,
+      }));
+    }
+  };
+
   const handleDeleteStaff = (staffId: string) => {
     setStaffList(prev => prev.filter(s => s.id !== staffId));
+  };
+
+  const handleUpdateOwnerProfile = (updated: OwnerProfile) => {
+    setOwnerProfile(updated);
+    if (currentSession.role === 'owner') {
+      setCurrentSession(prev => ({
+        ...prev,
+        name: updated.name,
+        title: updated.title,
+        emailOrPhone: `${updated.email} · ${updated.phone}`,
+      }));
+    }
+  };
+
+  const handleUpdateKostProfile = (updated: KostProfile) => {
+    setKostProfile(updated);
   };
 
   const handleSwitchStaffSession = (staff: StaffMember) => {
@@ -530,7 +596,7 @@ export default function App() {
 
   // Reset to default mock data
   const handleResetData = () => {
-    if (confirm('Apakah Anda yakin ingin mengatur ulang data demo Kost Adyatma ke kondisi awal?')) {
+    if (confirm(`Apakah Anda yakin ingin mengatur ulang data demo ${kostProfile.name} ke kondisi awal?`)) {
       resetAllData();
       window.location.reload();
     }
@@ -549,8 +615,16 @@ export default function App() {
         setActiveTab={setActiveTab}
         role={role}
         currentSession={currentSession}
+        kostName={kostProfile.name}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
-        onOpenStaffModal={() => setIsStaffModalOpen(true)}
+        onOpenUserManagement={(tab) => {
+          setUserManagementTab(tab || 'owner');
+          setIsUserManagementOpen(true);
+        }}
+        onOpenStaffModal={() => {
+          setUserManagementTab('staff');
+          setIsUserManagementOpen(true);
+        }}
         onOpenRoomConfig={() => {
           setRoomConfigTargetId(null);
           setIsRoomConfigOpen(true);
@@ -620,6 +694,7 @@ export default function App() {
                 tickets={tickets}
                 meterLogs={meterLogs}
                 currentStaffName={currentSession.name}
+                kostName={kostProfile.name}
                 onUpdateMeter={handleUpdateMeter}
                 onGenerateNewPin={handleGenerateNewPin}
                 onUpdateTicketStatus={handleUpdateTicketStatus}
@@ -691,6 +766,7 @@ export default function App() {
                 onCreateInvoice={handleCreateInvoice}
                 onOpenReceipt={(inv) => setReceiptModalInvoice(inv)}
                 onAddExpense={handleAddExpense}
+                onDeleteInvoice={handleDeleteInvoice}
               />
             )}
 
@@ -723,7 +799,7 @@ export default function App() {
           <div className="flex items-center gap-2">
             <span className="font-bold text-slate-800 dark:text-slate-200">SiKost Pro</span>
             <span>·</span>
-            <span>PropTech Kost Bulanan Adyatma Residence BSD</span>
+            <span>PropTech Kost Bulanan {kostProfile.name}</span>
             <span>·</span>
             <span>All systems operational</span>
           </div>
@@ -771,7 +847,7 @@ export default function App() {
               const room = rooms.find(r => r.id === waModalInvoice.roomId);
               if (!tenant || !room) return null;
 
-              const message = generateWhatsAppMessage(tenant, room, waModalInvoice);
+              const message = generateWhatsAppMessage(tenant, room, waModalInvoice, kostProfile);
 
               return (
                 <>
@@ -875,6 +951,8 @@ export default function App() {
         tenants={tenants}
         rooms={rooms}
         staffList={staffList}
+        ownerProfile={ownerProfile}
+        kostProfile={kostProfile}
       />
 
       {/* Staff Management & Permissions Matrix Modal (Owner Only) */}
@@ -885,6 +963,22 @@ export default function App() {
         onAddStaff={handleAddStaff}
         onDeleteStaff={handleDeleteStaff}
         onSwitchStaffSession={handleSwitchStaffSession}
+      />
+
+      {/* Dedicated Menu: Edit Owner & Penjaga Kost Modal */}
+      <UserManagementModal
+        isOpen={isUserManagementOpen}
+        onClose={() => setIsUserManagementOpen(false)}
+        ownerProfile={ownerProfile}
+        onUpdateOwnerProfile={handleUpdateOwnerProfile}
+        staffList={staffList}
+        onUpdateStaff={handleUpdateStaff}
+        onAddStaff={handleAddStaff}
+        onDeleteStaff={handleDeleteStaff}
+        onSwitchStaffSession={handleSwitchStaffSession}
+        kostProfile={kostProfile}
+        onUpdateKostProfile={handleUpdateKostProfile}
+        initialTab={userManagementTab}
       />
 
       {/* Production Database Schema & DDL Modal */}

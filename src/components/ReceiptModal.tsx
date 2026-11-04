@@ -113,7 +113,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
             <span className="font-bold text-xs text-slate-900 block underline">
               {KOST_INFO.caretakerName}
             </span>
-            <span className="text-[10px] text-slate-500">Adyatma Residence BSD</span>
+            <span className="text-[10px] text-slate-500">{KOST_INFO.name}</span>
           </div>
         </div>
 

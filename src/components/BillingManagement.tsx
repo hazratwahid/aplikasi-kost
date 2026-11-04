@@ -15,7 +15,8 @@ import {
   FileCheck,
   Zap,
   Copy,
-  ExternalLink
+  ExternalLink,
+  Trash2
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -28,6 +29,7 @@ interface BillingManagementProps {
   onCreateInvoice: (newInvoice: Omit<Invoice, 'id'>) => void;
   onOpenReceipt: (invoice: Invoice) => void;
   onAddExpense: (expense: Omit<FinancialRecord, 'id'>) => void;
+  onDeleteInvoice?: (invoiceId: string) => void;
 }
 
 export const BillingManagement: React.FC<BillingManagementProps> = ({
@@ -39,10 +41,12 @@ export const BillingManagement: React.FC<BillingManagementProps> = ({
   onCreateInvoice,
   onOpenReceipt,
   onAddExpense,
+  onDeleteInvoice,
 }) => {
   const [activeTab, setActiveTab] = useState<'invoices' | 'verification' | 'expenses'>('invoices');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
   
   // WhatsApp Preview Modal State
   const [waModalData, setWaModalData] = useState<{
@@ -404,6 +408,13 @@ export const BillingManagement: React.FC<BillingManagementProps> = ({
                               className="p-1.5 text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-md transition-colors"
                             >
                               <Printer className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setInvoiceToDelete(inv)}
+                              title="Hapus Tagihan (Koreksi Data)"
+                              className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-md transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </td>
@@ -798,6 +809,50 @@ export const BillingManagement: React.FC<BillingManagementProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Invoice Confirmation Modal */}
+      {invoiceToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl max-w-sm w-full p-5 space-y-4 shadow-xl">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 shrink-0">
+                <Trash2 className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Hapus Tagihan?
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Invoice {invoiceToDelete.invoiceNumber} ({invoiceToDelete.periodMonth})
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+              Apakah Anda yakin ingin menghapus tagihan ini sebesar <strong className="font-mono text-slate-900 dark:text-white">{formatIDR(invoiceToDelete.totalAmount)}</strong>? Tindakan ini akan menghapus data tagihan ini agar data tagihan lebih valid.
+            </p>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                onClick={() => setInvoiceToDelete(null)}
+                className="px-3 py-1.5 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => {
+                  onDeleteInvoice?.(invoiceToDelete.id);
+                  setInvoiceToDelete(null);
+                }}
+                className="px-3.5 py-1.5 text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white rounded-md shadow-xs flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Hapus Tagihan
+              </button>
+            </div>
           </div>
         </div>
       )}

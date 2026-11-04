@@ -1,4 +1,4 @@
-import { Room, Tenant, Invoice, MaintenanceTicket, FinancialRecord, MeterLog, HouseRule, StaffMember } from '../types';
+import { Room, Tenant, Invoice, MaintenanceTicket, FinancialRecord, MeterLog, HouseRule, StaffMember, OwnerProfile, KostProfile } from '../types';
 
 export const INITIAL_ROOMS: Room[] = [
   {
@@ -723,27 +723,96 @@ export const HOUSE_RULES: HouseRule[] = [
   },
 ];
 
+export const DEFAULT_OWNER_PROFILE: OwnerProfile = {
+  id: 'owner-1',
+  name: 'H. Fajar Nugraha',
+  title: 'Pemilik Kost & Super Admin',
+  phone: '08115409988',
+  email: 'fajar@kostfajar.com',
+  address: 'Jl. MT Haryono No. 45, Gunung Bahagia, Balikpapan Selatan, Kota Balikpapan',
+  pin: '1234',
+  notes: 'Pemilik Utama Kost Fajar Balikpapan',
+};
+
 export const STAFF_MEMBERS: StaffMember[] = [
-  { id: 'stf-1', name: 'Pak Budi Santoso', role: 'Penjaga Kost', phone: '081298812300' },
-  { id: 'stf-2', name: 'Pak Joko Widodo', role: 'Teknisi', phone: '081377441199' },
-  { id: 'stf-3', name: 'Mbak Siti Aminah', role: 'Cleaning', phone: '085611228833' },
-  { id: 'stf-4', name: 'Ibu Ratna Hendrawan', role: 'Pengelola', phone: '081122334455' },
+  { 
+    id: 'stf-1', 
+    name: 'Pak Budi Santoso', 
+    role: 'Penjaga Kost', 
+    phone: '081298812300',
+    email: 'budi@kostfajar.com',
+    shift: 'Shift Pagi - Sore (07:00 - 16:00)',
+    active: true,
+    permissions: {
+      canRecordMeter: true,
+      canHandleTickets: true,
+      canViewDoorPin: true,
+      canVerifyPayment: true,
+    }
+  },
+  { 
+    id: 'stf-2', 
+    name: 'Pak Joko Widodo', 
+    role: 'Teknisi', 
+    phone: '081377441199',
+    email: 'joko.teknik@kostfajar.com',
+    shift: 'Shift Siang - Malam (14:00 - 22:00)',
+    active: true,
+    permissions: {
+      canRecordMeter: true,
+      canHandleTickets: true,
+      canViewDoorPin: true,
+      canVerifyPayment: false,
+    }
+  },
+  { 
+    id: 'stf-3', 
+    name: 'Mbak Siti Aminah', 
+    role: 'Cleaning', 
+    phone: '085611228833',
+    email: 'siti.clean@kostfajar.com',
+    shift: 'Shift Pagi (06:00 - 14:00)',
+    active: true,
+    permissions: {
+      canRecordMeter: false,
+      canHandleTickets: true,
+      canViewDoorPin: false,
+      canVerifyPayment: false,
+    }
+  },
+  { 
+    id: 'stf-4', 
+    name: 'Ibu Ratna Dewi', 
+    role: 'Pengelola', 
+    phone: '081122334455',
+    email: 'ratna@kostfajar.com',
+    shift: 'Shift Reguler (08:00 - 17:00)',
+    active: true,
+    permissions: {
+      canRecordMeter: true,
+      canHandleTickets: true,
+      canViewDoorPin: true,
+      canVerifyPayment: true,
+    }
+  },
 ];
 
-export const KOST_INFO = {
-  name: 'Kost Adyatma Residence BSD',
-  tagline: 'Kost Eksklusif Bulanan Profesional & Mahasiswa',
-  address: 'Jl. Boulevard BSD Timur Blok B-12 No. 8, Serpong, Tangerang Selatan',
+export const KOST_INFO: KostProfile = {
+  name: 'Kost Fajar Balikpapan',
+  tagline: 'Kost Eksklusif Bulanan Balikpapan - Nyaman, Bersih & Strategis',
+  address: 'Jl. MT Haryono No. 45, Gunung Bahagia, Balikpapan Selatan, Kota Balikpapan, Kalimantan Timur',
+  city: 'Balikpapan',
   caretakerName: 'Pak Budi Santoso',
   caretakerPhone: '081298812300',
   bankAccounts: [
-    { bank: 'BCA', number: '8030 9921 44', holder: 'PT Adyatma Properti Nusantara' },
-    { bank: 'Mandiri', number: '164 000 892 1109', holder: 'Adyatma Properti Nusantara' },
-    { bank: 'QRIS', number: 'NMID: ID102008392182', holder: 'SiKost Adyatma Residence' },
+    { bank: 'BCA', number: '8030 9921 44', holder: 'Kost Fajar Balikpapan' },
+    { bank: 'Mandiri', number: '164 000 892 1109', holder: 'Kost Fajar Balikpapan' },
+    { bank: 'QRIS', number: 'NMID: ID102008392182', holder: 'Kost Fajar Balikpapan' },
   ],
   wifiSsids: [
-    { floor: 'Lantai 1', ssid: 'Adyatma-Lantai1-5G', pass: 'adyatma123' },
-    { floor: 'Lantai 2', ssid: 'Adyatma-Lantai2-5G', pass: 'adyatma123' },
-    { floor: 'Lantai 3', ssid: 'Adyatma-Rooftop-5G', pass: 'adyatma123' },
+    { floor: 'Lantai 1', ssid: 'KostFajar-Lantai1-5G', pass: 'fajar123' },
+    { floor: 'Lantai 2', ssid: 'KostFajar-Lantai2-5G', pass: 'fajar123' },
+    { floor: 'Lantai 3', ssid: 'KostFajar-Rooftop-5G', pass: 'fajar123' },
   ],
 };
+

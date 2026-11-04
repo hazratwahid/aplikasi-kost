@@ -26,6 +26,7 @@ interface CaretakerDashboardViewProps {
   tickets: MaintenanceTicket[];
   meterLogs: MeterLog[];
   currentStaffName: string;
+  kostName?: string;
   onUpdateMeter: (roomId: string, newKwh: number, recordedBy: string) => void;
   onGenerateNewPin: (roomId: string) => void;
   onUpdateTicketStatus: (
@@ -45,6 +46,7 @@ export const CaretakerDashboardView: React.FC<CaretakerDashboardViewProps> = ({
   tickets,
   meterLogs,
   currentStaffName,
+  kostName = 'Kost Fajar Balikpapan',
   onUpdateMeter,
   onGenerateNewPin,
   onUpdateTicketStatus,
@@ -128,8 +130,8 @@ export const CaretakerDashboardView: React.FC<CaretakerDashboardViewProps> = ({
               <span className="px-2.5 py-0.5 rounded text-xs font-bold bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                 Akses Penjaga Kost (Caretaker)
               </span>
-              <span className="text-xs text-slate-500 dark:text-slate-400">
-                Kost Adyatma Residence BSD
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                {kostName}
               </span>
             </div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
